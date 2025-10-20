@@ -36,15 +36,21 @@ router.post('/user', (req, res) => {
 });
 
 router.delete('/user/:user_id', (req, res) => {
-  const userId = parseInt(req.params.user_id);
-  
-  if (!storage.users[userId]) {
-    return res.status(404).json({ error: 'User not found' });
-  }
+    const userId = parseInt(req.params.user_id);
 
-  delete storage.users[userId];
-  
-  res.json({ message: 'User deleted successfully', id: userId });
+    if (!storage.users[userId]) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+
+    Object.keys(storage.records).forEach(recordId => {
+        if (storage.records[recordId].user_id === userId) {
+        delete storage.records[recordId];
+        }
+    });
+
+    delete storage.users[userId];
+
+    res.json({ message: 'User deleted successfully', id: userId });
 });
 
 module.exports = router;

@@ -35,6 +35,12 @@ router.delete('/category/:id', (req, res) => {
     return res.status(404).json({ error: 'Category not found' });
   }
   
+  Object.keys(storage.records).forEach(recordId => {
+    if (storage.records[recordId].category_id === categoryId) {
+      delete storage.records[recordId];
+    }
+  });
+
   delete storage.categories[categoryId];
   
   res.json({ message: 'Category deleted successfully', id: categoryId });
