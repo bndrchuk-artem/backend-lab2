@@ -1,6 +1,7 @@
 const express = require('express');
 const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
+const recordRoutes = require('./routes/recordRoutes');
 
 const app = express();
 const PORT = 3000;
@@ -14,6 +15,7 @@ app.use((req, res, next) => {
 
 app.use('/', userRoutes);
 app.use('/', categoryRoutes);
+app.use('/', recordRoutes);
 
 app.get('/', (req, res) => {
   res.json({ 
