@@ -1,5 +1,6 @@
 const express = require('express');
 const userRoutes = require('./routes/userRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 const PORT = 3000;
@@ -12,12 +13,15 @@ app.use((req, res, next) => {
 });
 
 app.use('/', userRoutes);
+app.use('/', categoryRoutes);
 
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Expense Tracker API',
     endpoints: {
-      users: '/users, /user/:id'
+      users: '/users, /user/:id',
+      categories: '/category',
+      records: '/record, /record/:id'
     }
   });
 });
