@@ -13,11 +13,9 @@ router.get('/record/:record_id', (req, res) => {
   res.json(record);
 });
 
-// GET /record - отримати записи з фільтрацією
 router.get('/record', (req, res) => {
   const { user_id, category_id } = req.query;
   
-  // Перевірка наявності хоча б одного параметра
   if (!user_id && !category_id) {
     return res.status(400).json({ 
       error: 'At least one parameter (user_id or category_id) is required' 
@@ -26,13 +24,11 @@ router.get('/record', (req, res) => {
   
   let records = Object.values(storage.records);
   
-  // Фільтрація по user_id
   if (user_id) {
     const userId = parseInt(user_id);
     records = records.filter(record => record.user_id === userId);
   }
   
-  // Фільтрація по category_id
   if (category_id) {
     const categoryId = parseInt(category_id);
     records = records.filter(record => record.category_id === categoryId);
@@ -45,11 +41,9 @@ router.get('/record', (req, res) => {
   });
 });
 
-// POST /record - створити новий запис
 router.post('/record', (req, res) => {
   const { user_id, category_id, amount } = req.body;
   
-  // Базова валідація
   if (!user_id || !category_id || amount === undefined) {
     return res.status(400).json({ 
       error: 'user_id, category_id and amount are required' 
