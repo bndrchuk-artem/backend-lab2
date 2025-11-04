@@ -1,94 +1,141 @@
 const express = require('express');
 const router = express.Router();
-const storage = require('../data/storage');
+const Joi = require('joi');
+const { Record, User, Category, Currency } = require('../models');
 
-router.get('/record/:record_id', (req, res) => {
-  const recordId = parseInt(req.params.record_id);
-  const record = storage.records[recordId];
-  
-  if (!record) {
-    return res.status(404).json({ error: 'Record not found' });
-  }
-  
-  res.json(record);
+const recordSchema = Joi.object({
+  user_id: Joi.number().integer().positive().required(),
+  category_id: Joi.number().integer().positive().required(),
+  amount: Joi.number().positive().required(),
+  currency_id: Joi.number().integer().positive().optional() // Валюта опціональна
 });
 
-router.get('/record', (req, res) => {
-  const { user_id, category_id } = req.query;
-  
-  if (!user_id && !category_id) {
-    return res.status(400).json({ 
-      error: 'At least one parameter (user_id or category_id) is required' 
+// GET /record/:record_id Отримати один запис
+router.get('/record/:record_id', async (req, res, next) => {
+  try {
+    const recordId = parseInt(req.params.record_id);
+    const record = await Record.findByPk(recordId, {
+      include: [
+        { model: User, include: 'defaultCurrency' }, 
+        Category, 
+        Currency
+      ]
     });
+    
+    if (!record) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    res.json(record);
+  } catch (err) {
+    next(err);
   }
-  
-  let records = Object.values(storage.records);
-  
-  if (user_id) {
-    const userId = parseInt(user_id);
-    records = records.filter(record => record.user_id === userId);
-  }
-  
-  if (category_id) {
-    const categoryId = parseInt(category_id);
-    records = records.filter(record => record.category_id === categoryId);
-  }
-  
-  res.json({ 
-    records, 
-    count: records.length,
-    filters: { user_id, category_id }
-  });
 });
 
-router.post('/record', (req, res) => {
-  const { user_id, category_id, amount } = req.body;
-  
-  if (!user_id || !category_id || amount === undefined) {
-    return res.status(400).json({ 
-      error: 'user_id, category_id and amount are required' 
+// GET /record Отримати записи за фільтром
+router.get('/record', async (req, res, next) => {
+  try {
+    const { user_id, category_id } = req.query;
+    const where = {};
+
+    if (user_id) where.user_id = parseInt(user_id);
+    if (category_id) where.category_id = parseInt(category_id);
+
+    if (!user_id && !category_id) {
+      return res.status(400).json({ 
+        error: 'At least one parameter (user_id or category_id) is required' 
+      });
+    }
+
+    const records = await Record.findAll({ 
+      where,
+      include: [
+        { model: User, include: 'defaultCurrency' }, 
+        Category, 
+        Currency
+      ]
     });
+    
+    res.json({ 
+      records, 
+      count: records.length,
+      filters: { user_id, category_id }
+    });
+  } catch (err) {
+    next(err);
   }
-  
-  const userId = parseInt(user_id);
-  const categoryId = parseInt(category_id);
-  const numAmount = parseFloat(amount);
-  
-  if (!storage.users[userId]) {
-    return res.status(404).json({ error: 'User not found' });
-  }
-  
-  if (!storage.categories[categoryId]) {
-    return res.status(404).json({ error: 'Category not found' });
-  }
-  
-  if (isNaN(numAmount) || numAmount <= 0) {
-    return res.status(400).json({ error: 'Amount must be a positive number' });
-  }
-  
-  const newRecord = {
-    id: storage.recordIdCounter++,
-    user_id: userId,
-    category_id: categoryId,
-    created_at: new Date().toISOString(),
-    amount: numAmount
-  };
-  
-  storage.records[newRecord.id] = newRecord;
-  
-  res.status(201).json(newRecord);
 });
 
-router.delete('/record/:record_id', (req, res) => {
-  const recordId = parseInt(req.params.record_id);
-  
-  if (!storage.records[recordId]) {
-    return res.status(404).json({ error: 'Record not found' });
+// POST /record Створити новий запис
+router.post('/record', async (req, res, next) => {
+  try {
+    const { error, value } = recordSchema.validate(req.body);
+    if (error) {
+      error.isJoi = true;
+      throw error;
+    }
+
+    const { user_id, category_id, amount } = value;
+    let currency_id = value.currency_id;
+
+    const user = await User.findByPk(user_id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const category = await Category.findByPk(category_id);
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    // Логіка Валюти
+    if (!currency_id) {
+      if (!user.default_currency_id) {
+        return res.status(400).json({ 
+          error: 'User has no default currency set and no currency_id was provided.' 
+        });
+      }
+      currency_id = user.default_currency_id;
+    } else {
+      const currency = await Currency.findByPk(currency_id);
+      if (!currency) {
+        return res.status(400).json({ error: 'Invalid currency_id' });
+      }
+    }
+
+    const newRecord = await Record.create({
+      user_id,
+      category_id,
+      amount,
+      currency_id
+    });
+    
+    const result = await Record.findByPk(newRecord.id, {
+        include: [User, Category, Currency]
+    });
+    
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
   }
-  
-  delete storage.records[recordId];
-  
-  res.json({ message: 'Record deleted successfully', id: recordId });
+});
+
+// DELETE /record/:record_id Видалити запис
+router.delete('/record/:record_id', async (req, res, next) => {
+  try {
+    const recordId = parseInt(req.params.record_id);
+    
+    const record = await Record.findByPk(recordId);
+    if (!record) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    await record.destroy();
+    
+    res.json({ message: 'Record deleted successfully', id: recordId });
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
