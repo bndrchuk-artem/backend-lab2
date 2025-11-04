@@ -1,49 +1,60 @@
 const express = require('express');
 const router = express.Router();
-const storage = require('../data/storage');
+const Joi = require('joi');
+const { Category } = require('../models');
 
-router.get('/category', (req, res) => {
-  const categories = Object.values(storage.categories);
-  res.json({ categories, count: categories.length });
+// Схема валідації
+const categorySchema = Joi.object({
+  name: Joi.string().min(2).required()
 });
 
-router.post('/category', (req, res) => {
-  const { name } = req.body;
-  
-  if (!name) {
-    return res.status(400).json({ error: 'Category name is required' });
+// GET /category Отримати всі категорії
+router.get('/category', async (req, res, next) => {
+  try {
+    const categories = await Category.findAll();
+    res.json({ categories, count: categories.length });
+  } catch (err) {
+    next(err);
   }
-  
-  const newCategory = {
-    id: storage.categoryIdCounter++,
-    name: name
-  };
-  
-  storage.categories[newCategory.id] = newCategory;
-  
-  res.status(201).json(newCategory);
 });
 
-router.delete('/category/:id', (req, res) => {
-  const categoryId = parseInt(req.params.id);
-  
-  if (!categoryId) {
-    return res.status(400).json({ error: 'Category ID is required' });
-  }
-  
-  if (!storage.categories[categoryId]) {
-    return res.status(404).json({ error: 'Category not found' });
-  }
-  
-  Object.keys(storage.records).forEach(recordId => {
-    if (storage.records[recordId].category_id === categoryId) {
-      delete storage.records[recordId];
+// POST /category Створити нову категорію
+router.post('/category', async (req, res, next) => {
+  try {
+    const { error, value } = categorySchema.validate(req.body);
+    if (error) {
+      error.isJoi = true;
+      throw error;
     }
-  });
 
-  delete storage.categories[categoryId];
-  
-  res.json({ message: 'Category deleted successfully', id: categoryId });
+    const newCategory = await Category.create(value);
+    res.status(201).json(newCategory);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /category/:id Видалити категорію
+router.delete('/category/:id', async (req, res, next) => {
+  try {
+    const categoryId = parseInt(req.params.id);
+    if (isNaN(categoryId) || categoryId <= 0) {
+      return res.status(400).json({ error: 'Invalid Category ID' });
+    }
+
+    const category = await Category.findByPk(categoryId);
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    
+    // Міграція 'create-record' має 'onDelete: CASCADE',
+    // тому всі пов'язані записи будуть видалені автоматично.
+    await category.destroy();
+
+    res.json({ message: 'Category deleted successfully', id: categoryId });
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
