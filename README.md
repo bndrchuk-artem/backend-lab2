@@ -1,12 +1,6 @@
-# Expense Tracker API
+# Лабораторна 3
 
-REST API для обліку витрат. Застосунок дозволяє створювати користувачів, категорії витрат та записи про витрати з можливістю фільтрації.
-
-## Технології
-
-- **Node.js** (v18+)
-- **Express.js**
-
+Варіант: `4 % 3 = 1` - Валюти
 
 ## Встановлення
 
@@ -15,12 +9,13 @@ REST API для обліку витрат. Застосунок дозволяє
 - Node.js версії 18 або вище
 - npm
 - Git
+- Docker
 
 ### Кроки встановлення
 
 1. **Клонуйте репозиторій:**
 ```bash
-git clone https://github.com/bndrchuk-artem/backend-lab2
+git clone --branch v3.0.0 https://github.com/bndrchuk-artem/backend-lab2
 cd backend-lab2
 ```
 
@@ -33,14 +28,8 @@ npm install
 
 ### Локальний запуск
 
-**Режим розробки з автоматичним перезапуском:**
 ```bash
-npm run dev
-```
-
-**Звичайний режим:**
-```bash
-npm start
+docker-compose up --build
 ```
 
 Сервер буде доступний за адресою: **http://localhost:3000**
@@ -55,11 +44,12 @@ http://localhost:3000
 Ви маєте побачити:
 ```json
 {
-  "message": "Expense Tracker API",
-  "endpoints": {
-    "users": "/users, /user/:id",
-    "categories": "/category",
-    "records": "/record, /record/:id"
+  "message": "Lab v3.0 (PostgreSQL)",
+    "endpoints": {
+      "users": "'/users, /user/:id'",
+      "categories": "'/category'",
+      "records": "/record, /record/:id",
+      "currencies": "/currency"
   }
 }
 ```
@@ -88,6 +78,13 @@ GET /user/:user_id
 ```http
 POST /user
 Content-Type: application/json
+```
+
+```json
+{
+  "name": "Іван",
+  "default_currency_id": 1
+}
 ```
 
 ### 4. Видалити користувача
@@ -160,38 +157,83 @@ GET /record?user_id=1&category_id=2
 POST /record
 Content-Type: application/json
 ```
-
+```json
+{
+  "user_id": 1,
+  "category_id": 1,
+  "amount": 250.50,
+  "currency_id": 1 //Опціонально
+}  
+```
 
 ### 4. Видалити запис
 ```http
 DELETE /record/:record_id
 ```
 
+## Валюти
+### 1. Отримати всі валюти
+```http
+GET /currency
+```
+
+### 2. Створити валюту
+```http
+POST /currency
+Content-Type: application/json
+```
+```json
+{
+  "code": "PLN",
+  "name": "Polish Zloty"
+} 
+```
+
+### 3. Видалити валюту
+```http
+DELETE /currency/:id
+```
+
+### 4. Змінити валюту користувача за замовчуванням
+```http
+PATCH /user/:user_id/default-currency
+Content-Type: application/json
+```
+```json
+{
+  "default_currency_id": 2
+} 
+```
+
 ## Структура даних
 
 ### User (Користувач)
-```javascript
+```json
 {
-  id: Number,
-  name: String
+  "id": 1,
+  "name": "Іван Тестер",
+  "default_currency_id": 1,
+  "createdAt": "2025-11-04T18:00:00.000Z",
+  "updatedAt": "2025-11-04T18:00:00.000Z"
 }
 ```
 
 ### Category (Категорія)
-```javascript
+```json
 {
-  id: Number,
-  name: String
+  "id": 1,
+  "name": "Продукти"
 }
 ```
 
 ### Record (Запис)
-```javascript
+```json
 {
-  id: Number,
-  user_id: Number,
-  category_id: Number,
-  created_at: String,
-  amount: Number
+  "id": 1,
+  "amount": 250.5,
+  "user_id": 1,
+  "category_id": 1,
+  "currency_id": 1,
+  "createdAt": "2025-11-04T18:05:00.000Z"
 }
 ```
