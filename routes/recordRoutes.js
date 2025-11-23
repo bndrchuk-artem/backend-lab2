@@ -2,21 +2,25 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const { Record, User, Category, Currency } = require('../models');
+const authMiddleware = require('../middleware/auth');
 
 const recordSchema = Joi.object({
   user_id: Joi.number().integer().positive().required(),
   category_id: Joi.number().integer().positive().required(),
   amount: Joi.number().positive().required(),
-  currency_id: Joi.number().integer().positive().optional() // Валюта опціональна
+  currency_id: Joi.number().integer().positive().optional()
 });
 
-// GET /record/:record_id Отримати один запис
-router.get('/record/:record_id', async (req, res, next) => {
+router.get('/record/:record_id', authMiddleware, async (req, res, next) => {
   try {
     const recordId = parseInt(req.params.record_id);
     const record = await Record.findByPk(recordId, {
       include: [
-        { model: User, include: 'defaultCurrency' }, 
+        { 
+          model: User, 
+          include: 'defaultCurrency',
+          attributes: { exclude: ['password'] }
+        }, 
         Category, 
         Currency
       ]
@@ -32,8 +36,7 @@ router.get('/record/:record_id', async (req, res, next) => {
   }
 });
 
-// GET /record Отримати записи за фільтром
-router.get('/record', async (req, res, next) => {
+router.get('/record', authMiddleware, async (req, res, next) => {
   try {
     const { user_id, category_id } = req.query;
     const where = {};
@@ -50,7 +53,11 @@ router.get('/record', async (req, res, next) => {
     const records = await Record.findAll({ 
       where,
       include: [
-        { model: User, include: 'defaultCurrency' }, 
+        { 
+          model: User, 
+          include: 'defaultCurrency',
+          attributes: { exclude: ['password'] }
+        }, 
         Category, 
         Currency
       ]
@@ -66,8 +73,7 @@ router.get('/record', async (req, res, next) => {
   }
 });
 
-// POST /record Створити новий запис
-router.post('/record', async (req, res, next) => {
+router.post('/record', authMiddleware, async (req, res, next) => {
   try {
     const { error, value } = recordSchema.validate(req.body);
     if (error) {
@@ -88,7 +94,6 @@ router.post('/record', async (req, res, next) => {
       return res.status(404).json({ error: 'Category not found' });
     }
 
-    // Логіка Валюти
     if (!currency_id) {
       if (!user.default_currency_id) {
         return res.status(400).json({ 
@@ -111,7 +116,14 @@ router.post('/record', async (req, res, next) => {
     });
     
     const result = await Record.findByPk(newRecord.id, {
-        include: [User, Category, Currency]
+      include: [
+        {
+          model: User,
+          attributes: { exclude: ['password'] }
+        }, 
+        Category, 
+        Currency
+      ]
     });
     
     res.status(201).json(result);
@@ -120,8 +132,7 @@ router.post('/record', async (req, res, next) => {
   }
 });
 
-// DELETE /record/:record_id Видалити запис
-router.delete('/record/:record_id', async (req, res, next) => {
+router.delete('/record/:record_id', authMiddleware, async (req, res, next) => {
   try {
     const recordId = parseInt(req.params.record_id);
     

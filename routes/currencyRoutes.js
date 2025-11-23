@@ -2,14 +2,14 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const { Currency } = require('../models');
+const authMiddleware = require('../middleware/auth');
 
 const currencySchema = Joi.object({
   code: Joi.string().length(3).uppercase().required(),
   name: Joi.string().min(3).required()
 });
 
-// GET /currency Отримати всі валюти
-router.get('/currency', async (req, res, next) => {
+router.get('/currency', authMiddleware, async (req, res, next) => {
   try {
     const currencies = await Currency.findAll();
     res.json(currencies);
@@ -18,10 +18,8 @@ router.get('/currency', async (req, res, next) => {
   }
 });
 
-// POST /currency Створити нову валюту
-router.post('/currency', async (req, res, next) => {
+router.post('/currency', authMiddleware, async (req, res, next) => {
   try {
-    // Валідація
     const { error, value } = currencySchema.validate(req.body);
     if (error) {
       error.isJoi = true;
@@ -35,8 +33,7 @@ router.post('/currency', async (req, res, next) => {
   }
 });
 
-// DELETE /currency/:id Видалити валюту (!!!)
-router.delete('/currency/:id', async (req, res, next) => {
+router.delete('/currency/:id', authMiddleware, async (req, res, next) => {
   try {
     const currencyId = parseInt(req.params.id);
     const currency = await Currency.findByPk(currencyId);

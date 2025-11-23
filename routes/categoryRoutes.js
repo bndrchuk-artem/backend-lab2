@@ -2,14 +2,13 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const { Category } = require('../models');
+const authMiddleware = require('../middleware/auth');
 
-// Схема валідації
 const categorySchema = Joi.object({
   name: Joi.string().min(2).required()
 });
 
-// GET /category Отримати всі категорії
-router.get('/category', async (req, res, next) => {
+router.get('/category', authMiddleware, async (req, res, next) => {
   try {
     const categories = await Category.findAll();
     res.json({ categories, count: categories.length });
@@ -18,8 +17,7 @@ router.get('/category', async (req, res, next) => {
   }
 });
 
-// POST /category Створити нову категорію
-router.post('/category', async (req, res, next) => {
+router.post('/category', authMiddleware, async (req, res, next) => {
   try {
     const { error, value } = categorySchema.validate(req.body);
     if (error) {
@@ -34,8 +32,7 @@ router.post('/category', async (req, res, next) => {
   }
 });
 
-// DELETE /category/:id Видалити категорію
-router.delete('/category/:id', async (req, res, next) => {
+router.delete('/category/:id', authMiddleware, async (req, res, next) => {
   try {
     const categoryId = parseInt(req.params.id);
     if (isNaN(categoryId) || categoryId <= 0) {
@@ -47,8 +44,6 @@ router.delete('/category/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Category not found' });
     }
     
-    // Міграція 'create-record' має 'onDelete: CASCADE',
-    // тому всі пов'язані записи будуть видалені автоматично.
     await category.destroy();
 
     res.json({ message: 'Category deleted successfully', id: categoryId });
