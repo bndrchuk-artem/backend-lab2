@@ -112,4 +112,32 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+// GET /me Отримати інформацію про поточного користувача
+router.get('/me', authMiddleware, async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.userId, {
+      include: 'defaultCurrency',
+      attributes: { exclude: ['password'] }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = jwt.decode(token);
+
+    res.json({
+      user,
+      token_info: {
+        issued_at: new Date(decoded.iat * 1000).toISOString(),
+        expires_at: new Date(decoded.exp * 1000).toISOString(),
+        time_to_expire: Math.floor((decoded.exp - Date.now() / 1000) / 60) + ' minutes'
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
